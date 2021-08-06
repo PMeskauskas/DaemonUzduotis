@@ -1,0 +1,1 @@
+char *initPath(char path[], char *dest);
