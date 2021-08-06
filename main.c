@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "path.h"
 #include "logger.h"
 #include "daemon.h"
@@ -11,19 +12,30 @@ typedef enum LOCATION {
 char *DESTINATIONS[] = {
     "/Downloads","/Music", "/Videos", "/Pictures", "/Documents"
 };
-char downPath[PATH_LENGTH] = "/home/";
-char musicPath[PATH_LENGTH] = "/home/";
-char videoPath[PATH_LENGTH] = "/home/";
-char picPath[PATH_LENGTH] = "/home/";
-char docPath[PATH_LENGTH] = "/home/";
+struct path {
+    char downPath[PATH_LENGTH];
+    char musicPath[PATH_LENGTH];
+    char videoPath[PATH_LENGTH];
+    char picPath[PATH_LENGTH];
+    char docPath[PATH_LENGTH];
+};
 int main(void)
 {
-    initPath(downPath,DESTINATIONS[0]);
-    initPath(musicPath,DESTINATIONS[1]);
-    initPath(videoPath,DESTINATIONS[2]);
-    initPath(picPath,DESTINATIONS[3]);
-    initPath(docPath,DESTINATIONS[4]);
-    printf("Downloads destination: %s \n", downPath);
-    printf("Music destination: %s \n", musicPath);
+    struct path paths = {
+        "/home/", "/home/", "/home/", "/home/","/home/"  
+        };
+    open_log();
+    initPath(paths.downPath, DESTINATIONS[0]);
+    initPath(paths.musicPath, DESTINATIONS[1]);
+    initPath(paths.videoPath, DESTINATIONS[2]);
+    initPath(paths.picPath, DESTINATIONS[3]);
+    initPath(paths.docPath, DESTINATIONS[4]);
+    initDaemon();
+    while (1)
+    {
+        sleep(5);
+        logger(INFO, paths.downPath);
+    }
+    close_log();
     return 0;
 }

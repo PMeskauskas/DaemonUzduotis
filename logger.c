@@ -1,17 +1,23 @@
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "logger.h"
-
+#define MAX_PATH 40
 
 static FILE *log = NULL;
 
 int open_log()
 {
     int rc = 0;
-    log = fopen("/var/log/logger.log","a");
+    char cwd[MAX_PATH];
+   if (getcwd(cwd, sizeof(cwd)) != NULL) {
+       strcat(cwd,"/logger.log");
+    log = fopen(cwd,"a");
     if (log == NULL) {
         rc = 1;
     }
+   }
+    else rc = 1;
     return rc;
 }
 

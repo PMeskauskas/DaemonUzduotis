@@ -1,1 +1,1 @@
-char *initPath(char path[], char *dest);
+void initPath(char path[], char *dest);
