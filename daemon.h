@@ -1,1 +1,1 @@
-void initDaemon();
+void initDaemon(pid_t process_id);

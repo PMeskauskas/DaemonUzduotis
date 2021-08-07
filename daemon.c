@@ -5,9 +5,9 @@
 #include <sys/stat.h>
 #include <string.h>
 #include "logger.h"
-extern void initDaemon()
+extern void initDaemon(pid_t process_id)
 {
-pid_t process_id = 0;
+
 pid_t sid = 0;
 process_id = fork();
 if (process_id < 0)

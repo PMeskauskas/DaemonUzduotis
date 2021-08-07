@@ -7,22 +7,24 @@
 #include "path.h"
 
 
-extern void initPath(char path[], char *dest)
+extern void pathInit(char path[], char *dest)
 {
     char *user =getenv("USER");
-    char msg[255];
     strcat(path, user);
     strcat(path, dest);
-    strcpy(msg, path);
+    pathExists(path);
+}
+extern void pathExists(char path[])
+{
     struct stat sb;
-
+    char msg[256];
+    strcpy(msg, path);
     if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
         strcat(msg, " exists.");
-        logger(INFO,msg);
+        logger(INFO, msg);
     } else {
         strcat(msg, " doesn't exist, creating directory...");
         logger( INFO, msg);
         mkdir(path,0755);
-        
     }
 }
