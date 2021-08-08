@@ -6,25 +6,29 @@
 #include "logger.h"
 #include "path.h"
 
-
 extern void pathInit(char path[], char *dest)
 {
-    char *user =getenv("USER");
+    char *user = getenv("USER");
     strcat(path, user);
     strcat(path, dest);
+
     pathExists(path);
 }
+
 extern void pathExists(char path[])
 {
     struct stat sb;
     char msg[256];
     strcpy(msg, path);
-    if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+    if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode))
+    {
         strcat(msg, " exists.");
         logger(INFO, msg);
-    } else {
+    }
+    else
+    {
         strcat(msg, " doesn't exist, creating directory...");
-        logger( INFO, msg);
-        mkdir(path,0755);
+        logger(INFO, msg);
+        mkdir(path, 0755);
     }
 }
