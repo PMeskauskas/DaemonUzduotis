@@ -102,7 +102,7 @@ static int findFileType(char fileName[])
     }
     return -1;
 }
-
+// 
 static void moveFile(int index, char fileName[])
 {
     char filePath[PATH_LENGTH];
