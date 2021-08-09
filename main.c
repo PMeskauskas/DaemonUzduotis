@@ -38,9 +38,11 @@ static struct path paths = {
 static pid_t process_id = 0;
 
 static void searchFile();
+static void watchDir(char fileName[]);
 static int findFileType(char fileName[]);
 static void moveFile(int index, char fileName[]);
 static void moveTo(char oldpath[], char newpath[]);
+int system(const char *command);
 
 int main(void)
 {
@@ -50,7 +52,7 @@ int main(void)
     pathInit(paths.videoPath, DESTINATIONS[2]);
     pathInit(paths.picPath, DESTINATIONS[3]);
     pathInit(paths.docPath, DESTINATIONS[4]);
-    //initDaemon(process_id);
+    initDaemon(process_id);
     searchFile();
     close_log();
     return 0;
@@ -58,26 +60,32 @@ int main(void)
 
 static void searchFile()
 {
-    DIR *dp;
-    struct dirent *dir;
-    if ((dp = opendir(paths.downPath)) == NULL)
+    while (1)
     {
+        sleep(5);
+        watchDir(paths.downPath);
+    }
+}
+
+static void watchDir(char fileName[])
+{
+    struct dirent *dir = NULL;
+    DIR *dp = NULL;
+    if ((dp = opendir(fileName)) == NULL)
+    {
+        logger(ERROR, "Failed to open directory, shutting down");
         kill(process_id, SIGKILL);
     }
-    sleep(5);
     while ((dir = readdir(dp)) != NULL)
     {
         if (dir->d_name[0] != '.')
         {
             int i = findFileType(dir->d_name);
-            printf("File: %s, filetype: %d \n", dir->d_name, i);
             moveFile(i, dir->d_name);
         }
     }
-
     closedir(dp);
 }
-
 static int findFileType(char fileName[])
 {
     char *type = strrchr(fileName, '.');
@@ -102,42 +110,56 @@ static int findFileType(char fileName[])
     }
     return -1;
 }
-// 
+
 static void moveFile(int index, char fileName[])
 {
     char filePath[PATH_LENGTH];
     strcpy(filePath, paths.downPath);
     strcat(filePath, "/");
     strcat(filePath, fileName);
-    printf("old path: %s\n", filePath);
-    printf("old path: %s\n", paths.musicPath); 
-    int rc = rename(filePath, paths.musicPath);
-    printf("perjungimas: %d\n",rc);
     switch (index)
     {
     case (MUSIC):
         moveTo(filePath, paths.musicPath);
         break;
     case (VIDEOS):
-        moveTo(filePath, paths.musicPath);
+        moveTo(filePath, paths.videoPath);
         break;
     case (PICTURES):
-        moveTo(filePath, paths.musicPath);
+        moveTo(filePath, paths.picPath);
         break;
     case (DOCUMENTS):
-        moveTo(filePath, paths.musicPath);
+        moveTo(filePath, paths.docPath);
         break;
     default:
-        moveTo(filePath, paths.musicPath);
+        break;
     }
-    
 }
 
 static void moveTo(char oldpath[], char newpath[])
 {
-    if (rename(oldpath, newpath))
+    char msg[256];
+    char move[256];
+
+    pathCheck(newpath, process_id);
+
+    strcpy(msg, "File ");
+    strcat(msg, oldpath);
+
+    strcpy(move, "mv ");
+    strcat(move, oldpath);
+    strcat(move, " ");
+    strcat(move, newpath);
+
+    if (system(move) != -1)
     {
-        logger(WARNING, "Couldn't move file, Deleting...");
+        strcat(msg, " moved successfully");
+        logger(INFO, msg);
+    }
+    else
+    {
+        strcat(msg, " failed to move, deleting...");
+        logger(WARNING, msg);
         remove(oldpath);
     }
 }
