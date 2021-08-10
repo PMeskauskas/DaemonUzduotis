@@ -45,7 +45,8 @@ static void configCheck();
 static void configWatchPath(const char *str);
 static void configWatchTypes(int *audio, int *video, int *photo, int *document);
 static void searchFile();
-static void watchDir(char fileName[]);
+static void checkDir(char fileName[], char files[]);
+static void watchDir(char fileName[], char files[]);
 static int findFileType(char fileName[]);
 static int checkType(char *path, const char *str, char *type);
 static void checkFile(int index, char fileName[]);
@@ -122,13 +123,16 @@ static void configWatchTypes(int *audio, int *video, int *photo, int *document)
 }
 static void searchFile()
 {
+    char files[PATH_LENGTH*4];
+    checkDir(paths.downPath, files);
+    printf("%s", files);
     while (1) {
-        sleep(5);
-        watchDir(paths.downPath);
+       sleep(5);
+       watchDir(paths.downPath, files);
     }
 }
 
-static void watchDir(char fileName[])
+static void checkDir(char fileName[], char files[])
 {
     struct dirent *dir = NULL;
     DIR *dp = NULL;
@@ -138,11 +142,33 @@ static void watchDir(char fileName[])
     }
     while ((dir = readdir(dp)) != NULL){
         if (dir->d_name[0] != '.') {
-            int i = findFileType(dir->d_name);
-            checkFile(i, dir->d_name);
+        
+            strcat(files,dir->d_name);
+            strcat(files, " ");
         }
     }
     closedir(dp);
+}
+
+static void watchDir(char fileName[],char files[])
+{
+    struct dirent *dir = NULL;
+    DIR *dp = NULL;
+    
+    if ((dp = opendir(fileName)) == NULL) {
+        logger(ERROR, "Failed to open directory, shutting down");
+        kill(process_id, SIGKILL);
+    }
+        while ((dir = readdir(dp)) != NULL){
+            if (dir->d_name[0] != '.') {
+                if(!strstr(files,dir->d_name)){
+                    int i = findFileType(dir->d_name);
+                    checkFile(i, dir->d_name);
+                }
+            }
+        }
+    closedir(dp);
+
 }
 static int findFileType(char fileName[])
 {
@@ -192,8 +218,8 @@ static int checkType(char *path, const char *str, char *type)
 }
 static void checkFile(int index, char fileName[])
 {
-    char filePath[PATH_LENGTH];
-    sprintf(filePath, "%s/%s",paths.downPath, fileName);
+    char filePath[PATH_LENGTH*4];
+    sprintf(filePath, "%s/%s", paths.downPath, fileName);
     switch (index){
     case (MUSIC):
         moveTo(filePath, paths.musicPath);
