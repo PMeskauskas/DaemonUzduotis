@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <string.h>
 #include <fcntl.h>
+#include <libconfig.h>
 #include "path.h"
 #include "logger.h"
 #include "daemon.h"
@@ -36,35 +37,95 @@ static struct path paths = {
     "/home/", "/home/", "/home/", "/home/", "/home/"};
 
 static pid_t process_id = 0;
+static config_t cfg;
+static config_setting_t *setting = NULL;
+static void configCheck();
+static void configWatchPath(const char *str);
 
+static void configWatchTypes(int *audio,int *video,int *photo, int *document);
 static void searchFile();
 static void watchDir(char fileName[]);
 static int findFileType(char fileName[]);
-static void moveFile(int index, char fileName[]);
+static int checkType(char *path, const char *str, char *type);
+static void checkFile(int index, char fileName[]);
 static void moveTo(char oldpath[], char newpath[]);
 int system(const char *command);
 
 int main(void)
 {
     open_log();
-    pathInit(paths.downPath, DESTINATIONS[0]);
+    const char *str = NULL;
+    config_init(&cfg);
+    configCheck();
+    configWatchPath(str);
     pathInit(paths.musicPath, DESTINATIONS[1]);
     pathInit(paths.videoPath, DESTINATIONS[2]);
     pathInit(paths.picPath, DESTINATIONS[3]);
     pathInit(paths.docPath, DESTINATIONS[4]);
-    initDaemon(process_id);
+    //initDaemon(process_id);
     searchFile();
+    config_destroy(&cfg);
     close_log();
     return 0;
 }
 
+static void configCheck()
+{
+    if (!config_read_file(&cfg, "configure.cfg"))
+    {
+        logger(ERROR, "Failed to read config file");
+        config_destroy(&cfg);
+        exit(1);
+    }
+}
+
+static void configWatchPath(const char *str)
+{
+    if (config_lookup_string(&cfg, "dir_to_watch", &str))
+    {
+        logger(INFO, "dir_to_watch found.");
+        strcpy(paths.downPath, str);
+        pathExists(paths.downPath);
+    }
+    else
+    {
+        logger(WARNING, "No 'dir_to_watch' setting in configuration file, using default...\n");
+        pathInit(paths.downPath, DESTINATIONS[0]);
+    }
+}
+static void configWatchTypes(int *audio,int *video,int *photo, int *document){
+    setting = config_lookup(&cfg, "types_to_watch");
+    if (setting != NULL)
+    {
+        config_setting_t *types = config_setting_get_elem(setting, 0);
+        int audiotype, videotype,phototype,documenttype;
+        if (!(config_setting_lookup_int(types, "audio", &audiotype) 
+        && config_setting_lookup_int(types, "video", &videotype) 
+        && config_setting_lookup_int(types, "photo", &phototype) 
+        && config_setting_lookup_int(types, "document", &documenttype))){
+            logger(ERROR, "Failed to find types_to_watch types in .cfg file, shutting down... ");
+            kill(process_id, SIGKILL);
+        }
+        
+        *audio = audiotype;
+        *video = videotype;
+        *photo = phototype;
+        *document = documenttype;
+    }
+    else
+    {
+        logger(ERROR, "No types_to_watch specified, shutting down...");
+        kill(process_id,SIGKILL);
+    }
+
+}
 static void searchFile()
 {
-    while (1)
-    {
-        sleep(5);
+    //while (1)
+    //{
+    //   sleep(5);
         watchDir(paths.downPath);
-    }
+    // }
 }
 
 static void watchDir(char fileName[])
@@ -81,7 +142,7 @@ static void watchDir(char fileName[])
         if (dir->d_name[0] != '.')
         {
             int i = findFileType(dir->d_name);
-            moveFile(i, dir->d_name);
+            checkFile(i, dir->d_name);
         }
     }
     closedir(dp);
@@ -89,29 +150,56 @@ static void watchDir(char fileName[])
 static int findFileType(char fileName[])
 {
     char *type = strrchr(fileName, '.');
+    const char *str = NULL;
     if (type != NULL)
     {
-        if (strcmp(type, ".mp3") == 0 || strcmp(type, ".wav") == 0 || strcmp(type, ".flac") == 0)
+        int audio = 0, video = 0, photo=  0, document = 0;
+        configWatchTypes(&audio, &video, &photo, &document);
+        printf("%d %d %d %d \n", audio, video, photo, document);
+        if (audio == 0)
         {
-            return MUSIC;
+          printf("vienas\n");
+            if(checkType("audio_types",str, type) == 0)
+                return MUSIC;
         }
-        else if (strcmp(type, ".mkv") == 0 || strcmp(type, ".avi") == 0 || strcmp(type, ".mp4") == 0)
+        if (video == 0)
         {
-            return VIDEOS;
+            if(checkType("video_types",str, type) == 0)
+                return VIDEOS;
         }
-        else if (strcmp(type, ".jpeg") == 0 || strcmp(type, ".png") == 0 || strcmp(type, ".svg") == 0)
+        if (photo == 0)
         {
-            return PICTURES;
+            if(checkType("photo_types",str, type) == 0)
+                return PICTURES;
         }
-        else if (strcmp(type, ".txt") == 0 || strcmp(type, ".docx") == 0 || strcmp(type, ".pdf") == 0)
+        if (document == 0)
         {
-            return DOCUMENTS;
+            if(checkType("document_types",str, type) == 0)
+                return DOCUMENTS;
         }
+        
     }
     return -1;
 }
-
-static void moveFile(int index, char fileName[])
+static int checkType(char *path,const char *str, char *type){
+    if (config_lookup_string(&cfg, path, &str))
+    {
+        char *string = (char*) malloc(sizeof(char) * 10);
+        strcpy(string,str);
+        char *token = strtok(string, ",");
+        while(token != NULL) {
+            if(strcmp(type, token) == 0){
+                free(string);
+                return 0;
+            }
+            token = strtok(NULL, ",");
+        }
+        free(string);
+        return -1;
+    }
+    else return -1;
+}
+static void checkFile(int index, char fileName[])
 {
     char filePath[PATH_LENGTH];
     strcpy(filePath, paths.downPath);

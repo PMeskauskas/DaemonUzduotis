@@ -10,7 +10,7 @@ OBJS:=$(SRC:.c=.o)
 all: $(BIN)
 
 $(BIN): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ -L. -lconfig
 
 clean:
 	$(RM) $(BIN) $(OBJS) $(LOG)
