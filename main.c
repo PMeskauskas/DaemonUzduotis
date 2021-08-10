@@ -72,8 +72,7 @@ int main(void)
 
 static void configCheck()
 {
-    if (!config_read_file(&cfg, "configure.cfg"))
-    {
+    if (!config_read_file(&cfg, "configure.cfg")) {
         logger(ERROR, "Failed to read config file");
         config_destroy(&cfg);
         exit(1);
@@ -82,22 +81,18 @@ static void configCheck()
 
 static void configWatchPath(const char *str)
 {
-    if (config_lookup_string(&cfg, "dir_to_watch", &str))
-    {
+    if (config_lookup_string(&cfg, "dir_to_watch", &str)) {
         logger(INFO, "dir_to_watch found.");
-        if (strlen(str) > 0)
-        {
+        if (strlen(str) > 0) {
             strcpy(paths.downPath, str);
             pathExists(paths.downPath);
         }
-        else
-        {
+        else {
             logger(WARNING, "No dir_to_watch specified, using default directory...");
             pathInit(paths.downPath, DESTINATIONS[0]);
         }
     }
-    else
-    {
+    else {
         logger(WARNING, "No 'dir_to_watch' setting in configuration file, using default...");
         pathInit(paths.downPath, DESTINATIONS[0]);
     }
@@ -105,31 +100,29 @@ static void configWatchPath(const char *str)
 static void configWatchTypes(int *audio, int *video, int *photo, int *document)
 {
     setting = config_lookup(&cfg, "types_to_watch");
-    if (setting != NULL)
-    {
+    if (setting != NULL) {
         config_setting_t *types = config_setting_get_elem(setting, 0);
         int audiotype, videotype, phototype, documenttype;
-        if (!(config_setting_lookup_int(types, "audio", &audiotype) && config_setting_lookup_int(types, "video", &videotype) && config_setting_lookup_int(types, "photo", &phototype) && config_setting_lookup_int(types, "document", &documenttype)))
-        {
+        if (!(config_setting_lookup_int(types, "audio", &audiotype) 
+        && config_setting_lookup_int(types, "video", &videotype) 
+        && config_setting_lookup_int(types, "photo", &phototype) 
+        && config_setting_lookup_int(types, "document", &documenttype))){
             logger(ERROR, "Failed to find types_to_watch types in .cfg file, shutting down... ");
             kill(process_id, SIGKILL);
         }
-
         *audio = audiotype;
         *video = videotype;
         *photo = phototype;
         *document = documenttype;
     }
-    else
-    {
+    else{
         logger(ERROR, "No types_to_watch specified, shutting down...");
         kill(process_id, SIGKILL);
     }
 }
 static void searchFile()
 {
-    while (1)
-    {
+    while (1) {
         sleep(5);
         watchDir(paths.downPath);
     }
@@ -139,15 +132,12 @@ static void watchDir(char fileName[])
 {
     struct dirent *dir = NULL;
     DIR *dp = NULL;
-    if ((dp = opendir(fileName)) == NULL)
-    {
+    if ((dp = opendir(fileName)) == NULL) {
         logger(ERROR, "Failed to open directory, shutting down");
         kill(process_id, SIGKILL);
     }
-    while ((dir = readdir(dp)) != NULL)
-    {
-        if (dir->d_name[0] != '.')
-        {
+    while ((dir = readdir(dp)) != NULL){
+        if (dir->d_name[0] != '.') {
             int i = findFileType(dir->d_name);
             checkFile(i, dir->d_name);
         }
@@ -158,27 +148,22 @@ static int findFileType(char fileName[])
 {
     char *type = strrchr(fileName, '.');
     const char *str = NULL;
-    if (type != NULL)
-    {
+    if (type != NULL) {
         int audio = 0, video = 0, photo = 0, document = 0;
         configWatchTypes(&audio, &video, &photo, &document);
-        if (audio == 0)
-        {
+        if (audio == 0) {
             if (checkType("audio_types", str, type) == 0)
                 return MUSIC;
         }
-        if (video == 0)
-        {
+        if (video == 0) {
             if (checkType("video_types", str, type) == 0)
                 return VIDEOS;
         }
-        if (photo == 0)
-        {
+        if (photo == 0) {
             if (checkType("photo_types", str, type) == 0)
                 return PICTURES;
         }
-        if (document == 0)
-        {
+        if (document == 0) {
             if (checkType("document_types", str, type) == 0)
                 return DOCUMENTS;
         }
@@ -187,16 +172,13 @@ static int findFileType(char fileName[])
 }
 static int checkType(char *path, const char *str, char *type)
 {
-    if (config_lookup_string(&cfg, path, &str))
-    {
+    if (config_lookup_string(&cfg, path, &str)) {
         char *string = (char *)malloc(sizeof(char) * 10);
 
         strcpy(string, str);
         char *token = strtok(string, ",");
-        while (token != NULL)
-        {
-            if (strcmp(type, token) == 0)
-            {
+        while (token != NULL) {
+            if (strcmp(type, token) == 0) {
                 free(string);
                 return 0;
             }
@@ -211,11 +193,8 @@ static int checkType(char *path, const char *str, char *type)
 static void checkFile(int index, char fileName[])
 {
     char filePath[PATH_LENGTH];
-    strcpy(filePath, paths.downPath);
-    strcat(filePath, "/");
-    strcat(filePath, fileName);
-    switch (index)
-    {
+    sprintf(filePath, "%s/%s",paths.downPath, fileName);
+    switch (index){
     case (MUSIC):
         moveTo(filePath, paths.musicPath);
         break;
@@ -238,26 +217,18 @@ static void moveTo(char oldpath[], char newpath[])
     char msg[256];
     char move[256];
     
-    if(pathCheck(newpath, oldpath, process_id) == 0){
-
-    strcpy(msg, "File ");
-    strcat(msg, oldpath);
-
-    strcpy(move, "mv ");
-    strcat(move, oldpath);
-    strcat(move, " ");
-    strcat(move, newpath);
-
-    if (system(move) != -1)
-    {
-        strcat(msg, " moved successfully");
-        logger(INFO, msg);
-    }
-    else
-    {
-        strcat(msg, " failed to move, deleting...");
-        logger(WARNING, msg);
-        remove(oldpath);
-    }
+    if(pathCheck(newpath, oldpath, process_id) == 0) {
+        sprintf(msg, "File ");
+        strcat(msg, oldpath);
+        sprintf(move, "mv %s %s", oldpath, newpath);
+        if (system(move) != -1) {
+            strcat(msg, " moved successfully");
+            logger(INFO, msg);
+        }
+        else {
+           strcat(msg, " failed to move, deleting...");
+            logger(WARNING, msg);
+            remove(oldpath);
+        }
     }
 }

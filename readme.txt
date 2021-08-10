@@ -6,4 +6,3 @@ Before running program, install libconfig.
 
 3) ./main to run.
 
-Use "configure.cfg" to configure your own settings.

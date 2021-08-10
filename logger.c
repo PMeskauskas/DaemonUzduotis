@@ -32,8 +32,7 @@ int close_log()
 static int get_level(int level, char *msg)
 {
     int rc = 0;
-    switch (level)
-    {
+    switch (level) {
     case INFO:
         strcpy(msg, "[INFO]");
         break;
