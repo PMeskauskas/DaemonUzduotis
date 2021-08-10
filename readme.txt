@@ -1,4 +1,8 @@
 Before running program, install libconfig.
 
-sudo apt-get install libconfig-dev
+1) sudo apt-get install libconfig-dev
+
+2) make
+
+3) ./main to run.
 

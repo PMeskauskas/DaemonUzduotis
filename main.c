@@ -39,10 +39,11 @@ static struct path paths = {
 static pid_t process_id = 0;
 static config_t cfg;
 static config_setting_t *setting = NULL;
+const char *str = NULL;
+
 static void configCheck();
 static void configWatchPath(const char *str);
-
-static void configWatchTypes(int *audio,int *video,int *photo, int *document);
+static void configWatchTypes(int *audio, int *video, int *photo, int *document);
 static void searchFile();
 static void watchDir(char fileName[]);
 static int findFileType(char fileName[]);
@@ -54,7 +55,7 @@ int system(const char *command);
 int main(void)
 {
     open_log();
-    const char *str = NULL;
+    
     config_init(&cfg);
     configCheck();
     configWatchPath(str);
@@ -62,7 +63,7 @@ int main(void)
     pathInit(paths.videoPath, DESTINATIONS[2]);
     pathInit(paths.picPath, DESTINATIONS[3]);
     pathInit(paths.docPath, DESTINATIONS[4]);
-    //initDaemon(process_id);
+    initDaemon(process_id);
     searchFile();
     config_destroy(&cfg);
     close_log();
@@ -84,29 +85,36 @@ static void configWatchPath(const char *str)
     if (config_lookup_string(&cfg, "dir_to_watch", &str))
     {
         logger(INFO, "dir_to_watch found.");
-        strcpy(paths.downPath, str);
-        pathExists(paths.downPath);
+        if (strlen(str) > 0)
+        {
+            strcpy(paths.downPath, str);
+            pathExists(paths.downPath);
+        }
+        else
+        {
+            logger(WARNING, "No dir_to_watch specified, using default directory...");
+            pathInit(paths.downPath, DESTINATIONS[0]);
+        }
     }
     else
     {
-        logger(WARNING, "No 'dir_to_watch' setting in configuration file, using default...\n");
+        logger(WARNING, "No 'dir_to_watch' setting in configuration file, using default...");
         pathInit(paths.downPath, DESTINATIONS[0]);
     }
 }
-static void configWatchTypes(int *audio,int *video,int *photo, int *document){
+static void configWatchTypes(int *audio, int *video, int *photo, int *document)
+{
     setting = config_lookup(&cfg, "types_to_watch");
     if (setting != NULL)
     {
         config_setting_t *types = config_setting_get_elem(setting, 0);
-        int audiotype, videotype,phototype,documenttype;
-        if (!(config_setting_lookup_int(types, "audio", &audiotype) 
-        && config_setting_lookup_int(types, "video", &videotype) 
-        && config_setting_lookup_int(types, "photo", &phototype) 
-        && config_setting_lookup_int(types, "document", &documenttype))){
+        int audiotype, videotype, phototype, documenttype;
+        if (!(config_setting_lookup_int(types, "audio", &audiotype) && config_setting_lookup_int(types, "video", &videotype) && config_setting_lookup_int(types, "photo", &phototype) && config_setting_lookup_int(types, "document", &documenttype)))
+        {
             logger(ERROR, "Failed to find types_to_watch types in .cfg file, shutting down... ");
             kill(process_id, SIGKILL);
         }
-        
+
         *audio = audiotype;
         *video = videotype;
         *photo = phototype;
@@ -115,17 +123,16 @@ static void configWatchTypes(int *audio,int *video,int *photo, int *document){
     else
     {
         logger(ERROR, "No types_to_watch specified, shutting down...");
-        kill(process_id,SIGKILL);
+        kill(process_id, SIGKILL);
     }
-
 }
 static void searchFile()
 {
-    //while (1)
-    //{
-    //   sleep(5);
+    while (1)
+    {
+        sleep(5);
         watchDir(paths.downPath);
-    // }
+    }
 }
 
 static void watchDir(char fileName[])
@@ -153,42 +160,43 @@ static int findFileType(char fileName[])
     const char *str = NULL;
     if (type != NULL)
     {
-        int audio = 0, video = 0, photo=  0, document = 0;
+        int audio = 0, video = 0, photo = 0, document = 0;
         configWatchTypes(&audio, &video, &photo, &document);
-        printf("%d %d %d %d \n", audio, video, photo, document);
         if (audio == 0)
         {
-          printf("vienas\n");
-            if(checkType("audio_types",str, type) == 0)
+            if (checkType("audio_types", str, type) == 0)
                 return MUSIC;
         }
         if (video == 0)
         {
-            if(checkType("video_types",str, type) == 0)
+            if (checkType("video_types", str, type) == 0)
                 return VIDEOS;
         }
         if (photo == 0)
         {
-            if(checkType("photo_types",str, type) == 0)
+            if (checkType("photo_types", str, type) == 0)
                 return PICTURES;
         }
         if (document == 0)
         {
-            if(checkType("document_types",str, type) == 0)
+            if (checkType("document_types", str, type) == 0)
                 return DOCUMENTS;
         }
-        
     }
     return -1;
 }
-static int checkType(char *path,const char *str, char *type){
+static int checkType(char *path, const char *str, char *type)
+{
     if (config_lookup_string(&cfg, path, &str))
     {
-        char *string = (char*) malloc(sizeof(char) * 10);
-        strcpy(string,str);
+        char *string = (char *)malloc(sizeof(char) * 10);
+
+        strcpy(string, str);
         char *token = strtok(string, ",");
-        while(token != NULL) {
-            if(strcmp(type, token) == 0){
+        while (token != NULL)
+        {
+            if (strcmp(type, token) == 0)
+            {
                 free(string);
                 return 0;
             }
@@ -197,7 +205,8 @@ static int checkType(char *path,const char *str, char *type){
         free(string);
         return -1;
     }
-    else return -1;
+    else
+        return -1;
 }
 static void checkFile(int index, char fileName[])
 {
@@ -228,8 +237,8 @@ static void moveTo(char oldpath[], char newpath[])
 {
     char msg[256];
     char move[256];
-
-    pathCheck(newpath, process_id);
+    
+    if(pathCheck(newpath, oldpath, process_id) == 0){
 
     strcpy(msg, "File ");
     strcat(msg, oldpath);
@@ -249,5 +258,6 @@ static void moveTo(char oldpath[], char newpath[])
         strcat(msg, " failed to move, deleting...");
         logger(WARNING, msg);
         remove(oldpath);
+    }
     }
 }

@@ -1,3 +1,3 @@
 void pathInit(char path[], char *dest);
 void pathExists(char path[]);
-void pathCheck(char path[], pid_t process_id);
+int pathCheck(char newpath[], char oldpath[], pid_t process_id);
